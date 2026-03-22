@@ -1,6 +1,14 @@
 #ifndef X2_RL_CONTROLLER__RL_NODE_HPP_
 #define X2_RL_CONTROLLER__RL_NODE_HPP_
 
+#define _USE_MATH_DEFINES
+#include <cmath>
+
+// 看门狗，机器的倾角不能高过这个值
+static constexpr float MAX_PITCH    = 35.0f * M_PI / 180.0f;
+static constexpr float MAX_ROLL     = 35.0f * M_PI / 180.0f;
+static constexpr float SAFE_LIMIT   = 35.0f * M_PI / 180.0f;  // 统一入口，与 MAX_ROLL/PITCH 相同
+
 #include <rclcpp/rclcpp.hpp>
 #include <aimdk_msgs/msg/joint_state_array.hpp>
 #include <aimdk_msgs/msg/joint_command_array.hpp>
@@ -10,6 +18,7 @@
 #include <string>
 #include <memory>
 #include "x2_rl_controller/mlp_policy.hpp"
+#include <std_msgs/msg/empty.hpp>
 
 class RLNode : public rclcpp::Node {
 public:
@@ -24,6 +33,7 @@ private:
     // 内部辅助函数
     void init_parameters();
     void build_command_message();
+    void emergency_shutdown();
 
     // ROS 2 接口
     rclcpp::Subscription<aimdk_msgs::msg::JointStateArray>::SharedPtr leg_state_sub_;
@@ -32,6 +42,7 @@ private:
     // 非rl目标
     rclcpp::Publisher<aimdk_msgs::msg::JointCommandArray>::SharedPtr arm_cmd_pub_;
     rclcpp::Publisher<aimdk_msgs::msg::JointCommandArray>::SharedPtr waist_cmd_pub_;
+    rclcpp::Publisher<aimdk_msgs::msg::JointCommandArray>::SharedPtr head_cmd_pub_;
 
     rclcpp::TimerBase::SharedPtr timer_;
 
@@ -52,12 +63,20 @@ private:
         "left_ankle_roll_joint", "right_ankle_roll_joint"
     };
     std::vector<std::string> arm_joint_names_ = {
-    "left_shoulder_pitch_joint", "left_elbow_joint" , "left_wrist_yaw_joint",
-    "right_shoulder_pitch_joint", "right_elbow_joint" , "right_wrist_yaw_joint"
+    "left_shoulder_pitch_joint", "left_shoulder_roll_joint", "left_shoulder_yaw_joint",
+    "left_elbow_joint" , 
+    "left_wrist_yaw_joint", "left_wrist_pitch_joint", "left_wrist_roll_joint",
+    "right_shoulder_pitch_joint", "right_shoulder_roll_joint", "right_shoulder_yaw_joint",
+    "right_elbow_joint" , 
+    "right_wrist_yaw_joint", "right_wrist_pitch_joint", "right_wrist_roll_joint"
     };
     std::vector<std::string> waist_joint_names_ = {
         "waist_yaw_joint", "waist_pitch_joint" , "waist_roll_joint"
     };
+    std::vector<std::string> head_joint_names_ = {
+        "head_yaw_joint", "head_pitch_joint"
+    };
+
 
     // 最新读取到的传感器状态 (受 mutex_ 保护)
     std::vector<float> latest_joint_pos_;
@@ -73,10 +92,26 @@ private:
     std::vector<float> kps_;
     std::vector<float> kds_;
 
+    // 欧拉角（IMU 回调中计算，供看门狗使用）
+    float latest_roll_  = 0.0f;
+    float latest_pitch_ = 0.0f;
+    float roll  = 0.0f;
+    float pitch = 0.0f;
+
+    // 紧急停机标志位
+    bool is_emergency_stopped_ = false;
+
     // 缓存发送消息以节省内存分配开销
     aimdk_msgs::msg::JointCommandArray cmd_msg_;
     aimdk_msgs::msg::JointCommandArray arm_cmd_msg_;
     aimdk_msgs::msg::JointCommandArray waist_cmd_msg_;
+    aimdk_msgs::msg::JointCommandArray head_cmd_msg_;
+
+    // 上位机心跳检测
+    rclcpp::Subscription<std_msgs::msg::Empty>::SharedPtr heartbeat_sub_;
+    rclcpp::Time last_heartbeat_received_;
+    bool is_comm_lost_ = false;
+    const double COMM_TIMEOUT = 0.1; // 100ms
 };
 
 #endif // X2_RL_CONTROLLER__RL_NODE_HPP_

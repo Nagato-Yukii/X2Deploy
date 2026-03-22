@@ -18,7 +18,9 @@ Omnidirectional_walking_workspace/
 │       │   └── locomotion.launch.py
 │       └── models/
 │           └── policy.onnx        # 你的核心资产：训练好的纯 MLP Actor 模型
-└introduction.txt # 介绍该工作空间
+├── introduction.txt # 介绍该工作空间
+├── test_publisher.py # 测试通信的节点
+└── test_security.py #测试安全的节点
 
 mnidirectional walking全向行走部署使用的模型来自
 github仓库:X2ULTRA_RL_ISAACLAB
@@ -62,3 +64,98 @@ wz (-0.1,0.1)rad/s-->(-0.2,0.2)rad/s
 sim2sim的结果可以在链接
 https://www.douyin.com/user/self?modal_id=7615201601472515391
 查看
+
+本机测试:
+  将CMakeLists关于ONNX Runtime的路径改成自己电脑的路径后进行编译,编译成功后
+
+  测试通信和上位机心跳机制
+  四个终端运行
+    cd Desktop/X2Deploy/omnidirectional_walking_workspace
+    source ~/Desktop/lx2501_3-v0.8.2.4/install/setup.bash
+  终端1:
+    python3 test_publisher.py  # 这个脚本往state节点发送模拟状态给主控rl_node订阅，并订阅主控输出的command
+    此时打印Test publisher started
+  终端2:
+    python3 life_support.py
+    此时打印Life Support Active. Keeping the robot conscious
+  终端3:
+    source install/setup.bash
+    ros2 launch x2_rl_controller locomotion.launch.py
+    此时打印El Psy Kongroo. RL Locomotion Node Activated.且终端1打印 Received command for 12 joints
+  终端4:
+    ros2 topic hz /aima/hal/joint/leg/command
+    此时因为都是在本机，average rate≈500,max<0.004s
+    且ros2 topic echo /aima/hal/joint/leg/command不为0 说明通信正常
+  此时中断终端2,上位机的消息不被接收,终端3打印!!! COMM LOSS DETECTED !!! No heartbeat for 0.101495 s
+  ros2 topic echo /aima/hal/joint/leg/command 均为0
+
+  测试安全措施
+  四个终端运行
+    cd Desktop/X2Deploy/omnidirectional_walking_workspace
+    source ~/Desktop/lx2501_3-v0.8.2.4/install/setup.bash
+  终端1:
+    python3 life_support.py
+    
+  终端2:
+    python3 test_security.py  # 这个脚本会在启动 5 秒后，模拟机器人向后翻倒（Pitch 角超过 35 度）的情况
+  终端3:
+    source install/setup.bash
+    ros2 launch x2_rl_controller locomotion.launch.py
+    打印El Psy Kongroo. RL Locomotion Node Activated.后，
+    打印!!! EMERGENCY STOP TRIGGERED: FULL SYSTEM SHUTDOWN !!!
+    且终端1打印error:FAILURE: Robot is falling but stiffness is still non-zero!
+  此时终端4监测command:
+    cd Desktop/X2Deploy/omnidirectional_walking_workspace
+    source install/setup.bash
+    ros2 topic echo /aima/hal/joint/leg/command
+    为零力矩模式
+
+上机测试:
+    1.下载ONNXRUNTIME
+        本机于https://github.com/microsoft/onnxruntime/releases?q=&expanded=true
+        下载onnxruntime-linux-aarch64-1.24.4.tgz,解压后cpoy到custom_workspace下
+        scp -r ~/Downloads/onnxruntime-linux-aarch64-1.24.4 agi@10.0.1.41:~/custom_workspace
+        如果copy路径不是这个，对应修改CMakeLists.txt
+        随后赋予权限
+        sudo chown -R agi:agi /agibot/data/home/agi/custom_workspace/onnxruntime-linux-aarch64-1.24.4
+        sudo chown -R agi:agi /agibot/data/home/agi/custom_workspace/onnxruntime-linux-aarch64-1.24.4
+
+    2.转移工作区
+        删除编译文件后，登录40板，关闭自带运控mc，logout，登录41板
+        在本机新建终端copy工作区到41板上
+        scp -r ~/Desktop/X2Deploy/omnidirectional_walking_workspace agi@10.0.1.41:~/custom_workspace/
+        life_support.py                               100%  709     1.0MB/s   00:00    
+        test_security.py                              100% 2503     5.6MB/s   00:00    
+        introduction.txt                              100% 7517    15.5MB/s   00:00    
+        test_publisher.py                             100% 2437     9.3MB/s   00:00    
+        policy.onnx                                   100% 1101KB 104.4MB/s   00:00    
+        policy.pt                                     100% 1112KB 106.9MB/s   00:00    
+        package.xml                                   100%  795     2.1MB/s   00:00    
+        locomotion.launch.py                          100% 1004     3.1MB/s   00:00    
+        rl_node.hpp                                   100% 4266     9.6MB/s   00:00    
+        mlp_policy.hpp                                100% 2343     6.6MB/s   00:00    
+        CMakeLists.txt                                100% 1855     6.3MB/s   00:00    
+        locomotion.yaml                               100% 3539    12.8MB/s   00:00    
+        standard_locomotion.yaml                      100% 3491     9.8MB/s   00:00    
+        rl_node.cpp                                   100%   10KB  23.9MB/s   00:00    
+        mlp_policy.cpp                                100% 4466    17.2MB/s   00:00 
+    3.41板上编译
+        cd ~/custom_workspace/omnidirectional_walking_workspace/
+        source ~/lx2501_3-v0.8.2.4/install/setup.bash
+        colcon build --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+        打印结果为
+        Starting >>> x2_rl_controller
+        Finished <<< x2_rl_controller [28.1s]
+        Summary: 1 package finished [28.3s]
+    4.板上运行
+        先在本机终端运行
+          cd Desktop/X2Deploy/omnidirectional_walking_workspace
+          source ~/Desktop/lx2501_3-v0.8.2.4/install/setup.bash
+          python3 life_support.py
+        再在41板上运行
+          export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/agibot/data/home/agi/custom_workspace/onnxruntime-linux-aarch64-1.24.4/lib
+          cd custom_workspace/omnidirectional_walking_workspace
+          source install/setup.bash
+          ros2 launch x2_rl_controller locomotion.launch.py
+        如果情况不对终止本机的life_support终端
+

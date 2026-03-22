@@ -5,41 +5,49 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
-# 1. 寻找基础 ROS 2 依赖
+# 基础ROS2依赖
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(aimdk_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(ament_index_cpp REQUIRED)
+find_package(tf2 REQUIRED)
+find_package(std_msgs REQUIRED)
 
-# 2. 寻找 ONNX Runtime (极其关键！)
-# 如果你在华硕笔记本或 RK3588 上遇到找不到的问题，
-# 也可以用 include_directories() 和 link_directories() 强行指定下载好的 ONNX 路径
-#find_package(onnxruntime REQUIRED)
-set(ONNXRUNTIME_DIR "/home/suzumiyaharuhi/Desktop/onnxruntime-linux-x64-1.16.3")
+# ONNXRUNTIME
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64" OR CMAKE_SYSTEM_PROCESSOR MATCHES "arm64")
+  set(ONNXRUNTIME_DIR "/agibot/data/home/agi/custom_workspace/onnxruntime-linux-aarch64-1.24.4")
+else()
+  set(ONNXRUNTIME_DIR "/home/suzumiyaharuhi/Desktop/onnxruntime-linux-x64-1.16.3")
+endif()
+message(STATUS "Selected ONNX Runtime path: ${ONNXRUNTIME_DIR}")
 include_directories(${ONNXRUNTIME_DIR}/include)
 link_directories(${ONNXRUNTIME_DIR}/lib)
-# 3. 声明可执行文件 (注意：这里必须把两个 .cpp 文件都加进去编译！)
+
+
+# 声明可执行文件
 add_executable(rl_node 
   src/rl_node.cpp 
   src/mlp_policy.cpp
 )
 
-# 4. 暴露头文件目录
+# 暴露头文件目录
 target_include_directories(rl_node PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
 )
 
-# 5. 链接 ROS 2 依赖
+# 链接 ROS 2 依赖
 ament_target_dependencies(rl_node
   rclcpp
   aimdk_msgs
   sensor_msgs
   ament_index_cpp
+  tf2
+  std_msgs
 )
 
-# 6. 链接 ONNX Runtime 动态库
+# 链接 ONNX Runtime 动态库
 target_link_libraries(rl_node onnxruntime)
 
 # ================= 安装规则 =================

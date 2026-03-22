@@ -2,10 +2,11 @@
 #include <iostream>
 #include <algorithm>
 #include <stdexcept>
+#include <cassert>
 
 MlpPolicy::MlpPolicy(const std::string& model_path) {
     // 1. 初始化 ONNX Session 配置 (建议开启多线程优化，视 RK3588 核心情况而定)
-    session_options_.SetIntraOpNumThreads(2); 
+    session_options_.SetIntraOpNumThreads(1); 
     session_options_.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_ALL);
 
     // 加载模型
@@ -25,6 +26,9 @@ MlpPolicy::MlpPolicy(const std::string& model_path) {
 }
 
 void MlpPolicy::update_history(std::vector<float>& history_buffer, const std::vector<float>& new_data, int dim) {
+    // 断言：违背尺寸法则将直接终止程序
+    assert(new_data.size() == static_cast<size_t>(dim)); 
+    assert(history_buffer.size() % dim == 0);
     // 将旧数据往前平移 (丢弃最老的 frame)
     std::copy(history_buffer.begin() + dim, history_buffer.end(), history_buffer.begin());
     // 将最新的一帧放到末尾

@@ -1,4 +1,4 @@
-rl_controller_node:
+rl_locomotion_node:
   ros__parameters:
     # ── Policy ───────────────────────────────────────────────────────────
     action_scale: 0.15          # target = action * scale + default_pos
