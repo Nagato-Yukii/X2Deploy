@@ -1,0 +1,64 @@
+此工作空间完成x2的全向行走控制
+
+Omnidirectional_walking_workspace/
+├── src/
+│   └── x2_rl_controller/
+│       ├── CMakeLists.txt         # 必须新增链接 ONNX Runtime 或 LibTorch 的规则
+│       ├── package.xml            # 必须新增对 sensor_msgs (IMU) 的依赖
+│       ├── config/
+│       │   └── locomotion.yaml    # ★ 关键：存放 SOP 中 locomotion 模式的专属 kp, kd 参数
+│       ├── include/
+│       │   └── x2_rl_controller/
+│       │       ├── rl_node.hpp    # 节点头文件：声明高频 Sub/Pub、定时器与历史队列
+│       │       └── mlp_policy.hpp # 推理头文件：将复杂的神经网络封装为一个干净的 C++ 类
+│       ├── src/
+│       │   ├── rl_node.cpp        # 核心 ROS 2 逻辑：数据对齐、拼接 5 层 obs、调用推理、发布动作
+│       │   └── mlp_policy.cpp     # 核心推理逻辑：加载 .onnx 模型，执行 Tensor 运算
+│       ├── launch/
+│       │   └── locomotion.launch.py
+│       └── models/
+│           └── policy.onnx        # 你的核心资产：训练好的纯 MLP Actor 模型
+└introduction.txt # 介绍该工作空间
+
+mnidirectional walking全向行走部署使用的模型来自
+github仓库:X2ULTRA_RL_ISAACLAB
+链接:https://github.com/Nagato-Yukii/X2ULTRA_RL_ISAACLAB
+
+模型描述:
+在训练仓库中，训练任务是Zhiyuan-X2Ultra-31dof-Velocity
+
+决策频率 50Hz (decimation = 10)
+obs每帧45维：
+   Term               维度      量纲与缩放              说明
+base_ang_vel           3       rad/s*0.2       base frame角速度Imu
+projected_gravity      3       单位向量[-1,1]    body frame 重力方向
+velocity_commands      3     [m/s,m/s,rad/s]    [vx,vy,wz]
+joint_pos_rel          12      rad无缩放        关节当前角-默认角
+joint_vel_rel          12      rad/s * 0.05     关节角速度
+last_action            12      网络原始输出       上一步Actor输出
+history_length = 5,总输入225维
+IsaacLab按照term分组堆叠，每个term有独立历史buffer
+顺序是oldest-->newest
+前几帧冷启动，没有得到的全用第0步观测值
+
+策略输出顺序
+
+交替顺序，在obs中关节也是如此顺序
+  L_hip_pitch, R_hip_pitch,
+  L_hip_roll,  R_hip_roll,                                                      
+  L_hip_yaw,   R_hip_yaw,
+  L_knee,      R_knee,                                                          
+  L_ankle_pitch, R_ankle_pitch,
+  L_ankle_roll,  R_ankle_roll
+
+关节位置控制
+target_pos = action × 0.15 + default_pos(rad) action_scale = 0.15，use_default_offset = True
+
+速度指令范围(课程)
+vx (-0.1,0.1)m/s-->(-0.5,1.0)m/s
+vy (-0.1,0.1)m/s-->(-0.3,0.3)m/s
+wz (-0.1,0.1)rad/s-->(-0.2,0.2)rad/s
+
+sim2sim的结果可以在链接
+https://www.douyin.com/user/self?modal_id=7615201601472515391
+查看

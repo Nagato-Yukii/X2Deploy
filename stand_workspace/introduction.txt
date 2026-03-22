@@ -1,0 +1,68 @@
+此工作空间完成x2的默认站立控制，可作为baseline进行测试
+
+stand_workspace/
+├── src/
+│   └── x2_stand_controller/         # 初始位姿控制包
+│       ├── CMakeLists.txt           # 编译配置 (需链接 rclcpp 和 aimdk_msgs)
+│       ├── package.xml              # 包信息声明
+│       ├── include/
+│       │   └── x2_stand_controller/
+│       │       └── stand_node.hpp   # 节点头文件，声明发布者和定时器
+│       ├── src/
+│       │   └── stand_node.cpp       # 核心逻辑：读取 YAML 参数并以 500Hz 发布指令
+│       ├── config/
+│       │   └── initial_pose.yaml    # ★ 核心资产：存放 SOP 3.3 的关节参数
+│       └── launch/
+│           └── stand.launch.py      # 启动文件，负责加载 YAML 参数并启动节点
+└introduction.txt # 介绍该工作空间
+
+个人本机测试
+    终端1:
+        source ~/Desktop/lx2501_3-v0.8.2.4/install/setup.bash
+        cd Desktop/X2Deploy/Stand_workspace
+        colcon build --symlink-install
+
+        打印结果为:
+            Starting >>> x2_stand_controller
+            Finished <<< x2_stand_controller [3.12s]
+            Summary: 1 package finished [3.33s]
+        source install/setup.bash
+        ros2 launch x2_stand_controller stand.launch.py
+        终端打印出El Psy Kongroo. Stand Node Initialized properly.
+
+    终端2:
+        监听节点:(本机与X2通过网线相连)
+        ros2 topic hz /aima/hal/joint/leg/command
+
+        打印结果显示:average_rate约为480，相邻两次指令的最大时间间隔约为0.05s，不能运行rl的locomotion
+
+机器上测试:
+    1.转移工作区
+        删除编译文件后，登录40板，关闭自带运控mc，logout，登录41板,ls可以看到当前目录下仅有lx2501_3-v0.8.2.4文件夹(通信依赖)和lx2501_3-v0.8.2.4.zip
+        在该主目录下直接创建custom_workspace作为自定义代码的工作空间
+        在本机新建终端copy工作区到41板上
+        scp -r ~/Desktop/X2Deploy/stand_workspace agi@10.0.1.41:~/custom_workspace/
+        agi@10.0.1.41's password: 
+        introduction.txt                              100% 1963     2.4MB/s   00:00    
+        package.xml                                   100%  667     2.5MB/s   00:00    
+        stand.launch.py                               100%  917     3.9MB/s   00:00    
+        stand_node.hpp                                100%  969     3.3MB/s   00:00    
+        CMakeLists.txt                                100% 1037     4.3MB/s   00:00    
+        initial_pose.yaml                             100% 1849     7.1MB/s   00:00    
+        stand_node.cpp                                100% 3349    10.8MB/s   00:00  
+    2.41板上编译
+        cd ~/custom_workspace/stand_workspace/
+        source ~/lx2501_3-v0.8.2.4/install/setup.bash
+        colcon build --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+        打印结果为
+        Starting >>> x2_stand_controller
+        Finished <<< x2_stand_controller [9.93s]                      
+        Summary: 1 package finished [10.2s]
+    3.板上运行
+        直接在该终端运行
+        source install/setup.bash
+        ros2 launch x2_stand_controller stand.launch.py
+        终端打印El Psy Kongroo. Stand Node Initialized properly.
+        在另一个终端也监听，
+        打印结果显示:average_rate约为500，相邻两次指令的最大时间间隔约为0.002s，可以运行rl的locomotion(50Hz-->0.02s)
+

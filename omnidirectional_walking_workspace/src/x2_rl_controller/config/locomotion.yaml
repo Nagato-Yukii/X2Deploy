@@ -1,0 +1,144 @@
+rl_controller_node:
+  ros__parameters:
+    # ── Policy ───────────────────────────────────────────────────────────
+    action_scale: 0.15          # target = action * scale + default_pos
+    history_length: 5           # obs stacking frames per term
+    ang_vel_scale: 0.2          # base_ang_vel obs scale
+    dof_vel_scale: 0.05         # joint_vel_rel obs scale
+
+# 注意是左右交替！！
+
+    # ── Per-joint PD gains and default positions ─────────────────────────
+    # Non-action joints are held at their default position.
+    default_pos: 0.0
+    default_kp: 40.0
+    default_kd: 2.0
+    joints:
+      # === LEG (12 action joints) ===
+      left_hip_pitch_joint:
+        position: -0.15
+        kp: 200.0
+        kd: 8.0
+      left_hip_roll_joint:
+        position: 0.0
+        kp: 200.0
+        kd: 8.0
+      left_hip_yaw_joint:
+        position: 0.0
+        kp: 150.0
+        kd: 6.0
+      left_knee_joint:
+        position: 0.30
+        kp: 200.0
+        kd: 8.0
+      left_ankle_pitch_joint:
+        position: -0.15
+        kp: 60.0
+        kd: 5.0
+      left_ankle_roll_joint:
+        position: 0.0
+        kp: 60.0
+        kd: 5.0
+      right_hip_pitch_joint:
+        position: -0.15
+        kp: 200.0
+        kd: 8.0
+      right_hip_roll_joint:
+        position: 0.0
+        kp: 200.0
+        kd: 8.0
+      right_hip_yaw_joint:
+        position: 0.0
+        kp: 150.0
+        kd: 6.0
+      right_knee_joint:
+        position: 0.30
+        kp: 200.0
+        kd: 8.0
+      right_ankle_pitch_joint:
+        position: -0.15
+        kp: 60.0
+        kd: 5.0
+      right_ankle_roll_joint:
+        position: 0.0
+        kp: 60.0
+        kd: 5.0
+      # === WAIST (non-action, hold at zero) ===
+      waist_yaw_joint:
+        position: 0.0
+        kp: 200.0
+        kd: 8.0
+      waist_pitch_joint:
+        position: 0.0
+        kp: 100.0
+        kd: 5.0
+      waist_roll_joint:
+        position: 0.0
+        kp: 100.0
+        kd: 5.0
+      # === ARMS (non-action) ===
+      left_shoulder_pitch_joint:
+        position: 0.3
+        kp: 40.0
+        kd: 2.0
+      left_shoulder_roll_joint:
+        position: 0.2
+        kp: 40.0
+        kd: 2.0
+      left_shoulder_yaw_joint:
+        position: 0.0
+        kp: 40.0
+        kd: 2.0
+      left_elbow_joint:
+        position: -0.9
+        kp: 40.0
+        kd: 2.0
+      left_wrist_yaw_joint:
+        position: 0.0
+        kp: 40.0
+        kd: 2.0
+      left_wrist_pitch_joint:
+        position: 0.0
+        kp: 40.0
+        kd: 2.0
+      left_wrist_roll_joint:
+        position: 0.0
+        kp: 40.0
+        kd: 2.0
+      right_shoulder_pitch_joint:
+        position: 0.3
+        kp: 40.0
+        kd: 2.0
+      right_shoulder_roll_joint:
+        position: -0.2
+        kp: 40.0
+        kd: 2.0
+      right_shoulder_yaw_joint:
+        position: 0.0
+        kp: 40.0
+        kd: 2.0
+      right_elbow_joint:
+        position: -0.9
+        kp: 40.0
+        kd: 2.0
+      right_wrist_yaw_joint:
+        position: 0.0
+        kp: 40.0
+        kd: 2.0
+      right_wrist_pitch_joint:
+        position: 0.0
+        kp: 40.0
+        kd: 2.0
+      right_wrist_roll_joint:
+        position: 0.0
+        kp: 40.0
+        kd: 2.0
+      # === HEAD (non-action) ===
+      head_yaw_joint:
+        position: 0.0
+        kp: 10.0
+        kd: 1.0
+      head_pitch_joint:
+        position: 0.0
+        kp: 10.0
+        kd: 1.0
